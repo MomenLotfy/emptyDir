@@ -1,8 +1,8 @@
-# 🧪 Kubernetes Volumes & Persistent Storage Lab (CKA Level)
+# 🧪 Kubernetes Volumes & Persistent Storage
 
 ## 📌 Overview
 
-This lab covers core Kubernetes storage concepts required for the CKA exam:
+This document provides a concise overview of core Kubernetes storage concepts:
 
 * `emptyDir`
 * `hostPath`
@@ -10,27 +10,13 @@ This lab covers core Kubernetes storage concepts required for the CKA exam:
 * `PersistentVolumeClaim (PVC)`
 * Multi-volume Pods
 
-⏱ Duration: 50 minutes
-📊 Total Score: 100 points
-🎯 Level: CKA
-
 ---
 
-# 📦 Part 1 — Volumes (30 pts)
+## 📦 Volumes
 
-## 1️⃣ emptyDir — Share Data Between Containers ⭐
+### 🔹 emptyDir
 
-### 🎯 Objective
-
-Create a Pod with two containers sharing a temporary volume.
-
-### ⚙️ Key Concepts
-
-* Lifecycle tied to Pod
-* Data is deleted when Pod is removed
-* Used for temporary storage and inter-container communication
-
-### 📄 YAML: `01-emptydir-volume.yaml`
+Temporary shared storage between containers in the same Pod.
 
 ```yaml
 apiVersion: v1
@@ -62,46 +48,16 @@ spec:
     emptyDir: {}
 ```
 
-### 🧪 Verification
+**Notes**
 
-```bash
-kubectl apply -f 01-emptydir-volume.yaml
-kubectl logs emptydir-demo -c reader
-kubectl exec emptydir-demo -c writer -- cat /shared/log.txt
-```
-
-### ❗ Important
-
-```bash
-kubectl delete pod emptydir-demo && kubectl apply -f 01-emptydir-volume.yaml
-```
-
-➡️ Data will be lost after recreation
+* Data is deleted when the Pod is removed
+* Useful for caching and container communication
 
 ---
 
-## 2️⃣ hostPath — Access Node Files ⭐⭐
+### 🔹 hostPath
 
-### 🎯 Objective
-
-Serve a static HTML file from the node using NGINX.
-
-### ⚙️ Key Concepts
-
-* Mounts node filesystem into Pod
-* Not recommended for production
-* Useful for testing/debugging
-
-### 🔧 Prepare Node
-
-```bash
-minikube ssh
-mkdir -p /tmp/webdata
-echo '<h1>From the Node!</h1>' > /tmp/webdata/index.html
-chmod -R 777 /tmp/webdata
-```
-
-### 📄 YAML: `02-hostpath-volume.yaml`
+Mounts a directory from the node into the Pod.
 
 ```yaml
 apiVersion: v1
@@ -123,31 +79,18 @@ spec:
       type: Directory
 ```
 
-### 🧪 Verification
+**Notes**
 
-```bash
-kubectl apply -f 02-hostpath-volume.yaml
-kubectl exec hostpath-demo -- curl localhost
-```
-
-### 🔁 Live Update Test
-
-```bash
-minikube ssh
-echo '<h1>Updated!</h1>' > /tmp/webdata/index.html
-```
-
-```bash
-kubectl exec hostpath-demo -- curl localhost
-```
+* Direct node filesystem access
+* Suitable for development/testing only
 
 ---
 
-# 💾 Part 2 — Persistent Storage (50 pts)
+## 💾 Persistent Storage
 
-## 3️⃣ PersistentVolume ⭐
+### 🔹 PersistentVolume (PV)
 
-### 📄 YAML: `03-persistentvolume.yaml`
+Cluster-level storage resource.
 
 ```yaml
 apiVersion: v1
@@ -164,18 +107,11 @@ spec:
   persistentVolumeReclaimPolicy: Retain
 ```
 
-### 🧪 Apply
-
-```bash
-kubectl apply -f 03-persistentvolume.yaml
-kubectl get pv
-```
-
 ---
 
-## 4️⃣ PersistentVolumeClaim ⭐⭐
+### 🔹 PersistentVolumeClaim (PVC)
 
-### 📄 YAML: `04-persistentvolumeclaim.yaml`
+Request for storage by a Pod.
 
 ```yaml
 apiVersion: v1
@@ -190,20 +126,9 @@ spec:
       storage: 500Mi
 ```
 
-### 🧪 Apply
-
-```bash
-kubectl apply -f 04-persistentvolumeclaim.yaml
-kubectl get pv,pvc
-```
-
-➡️ Expected: `Bound`
-
 ---
 
-## 5️⃣ Pod Using PVC ⭐⭐
-
-### 📄 YAML: `05-pod-with-pvc.yaml`
+### 🔹 Pod Using PVC
 
 ```yaml
 apiVersion: v1
@@ -224,33 +149,15 @@ spec:
       claimName: my-pvc
 ```
 
-### 🧪 Test Persistence
+**Key Point**
 
-```bash
-kubectl apply -f 05-pod-with-pvc.yaml
-kubectl exec pvc-demo -- sh -c 'echo persistent > /usr/share/nginx/html/test.txt'
-
-kubectl delete pod pvc-demo
-kubectl apply -f 05-pod-with-pvc.yaml
-
-kubectl exec pvc-demo -- cat /usr/share/nginx/html/test.txt
-```
-
-➡️ Data persists after Pod deletion ✅
+* Data persists beyond Pod lifecycle
 
 ---
 
-# 🔬 Part 3 — Multi-Volume Pod (20 pts)
+## 🔬 Multi-Volume Pod
 
-## 6️⃣ Multi-Volume Pod ⭐⭐⭐
-
-### 🔧 Setup
-
-```bash
-kubectl create configmap app-config --from-literal=KEY=value
-```
-
-### 📄 YAML: `07-multi-volume-pod.yaml`
+Combining different volume types in a single Pod:
 
 ```yaml
 apiVersion: v1
@@ -267,10 +174,8 @@ spec:
     volumeMounts:
     - name: cache-vol
       mountPath: /tmp/cache
-
     - name: data-vol
       mountPath: /data
-
     - name: config-vol
       mountPath: /etc/config
 
@@ -278,58 +183,28 @@ spec:
   - name: cache-vol
     emptyDir:
       medium: Memory
-
   - name: data-vol
     persistentVolumeClaim:
       claimName: my-pvc
-
   - name: config-vol
     configMap:
       name: app-config
 ```
 
-### 🧪 Verification
+---
 
-```bash
-kubectl apply -f 07-multi-volume-pod.yaml
-kubectl exec multi-volume-demo -- df -h
-kubectl exec multi-volume-demo -- ls /etc/config
-```
+## 🧠 Summary
+
+| Type     | Purpose            |
+| -------- | ------------------ |
+| emptyDir | Temporary storage  |
+| hostPath | Node access        |
+| PV/PVC   | Persistent storage |
 
 ---
 
-# 🧠 Key Takeaways
+## 🚀 Key Notes
 
-| Type     | Use Case                     |
-| -------- | ---------------------------- |
-| emptyDir | Temporary data sharing       |
-| hostPath | Node-level access (dev only) |
-| PV + PVC | Persistent production data   |
-
----
-
-# 🚀 Pro Tips (CKA)
-
-* Always debug using:
-
-  ```bash
-  kubectl get pods
-  kubectl describe pod <name>
-  ```
-
-* Remember:
-
-  * Pod → PVC → PV
-  * Data persists only with PV/PVC
-
----
-
-# 🎯 Conclusion
-
-This lab demonstrates the full lifecycle of Kubernetes storage:
-
-* Ephemeral → `emptyDir`
-* Node-bound → `hostPath`
-* Persistent → `PV/PVC`
-
-Mastering these concepts is critical for both the CKA exam and real-world DevOps workflows.
+* Storage flow: **Pod → PVC → PV**
+* Persistence requires **PV + PVC**
+* Use `emptyDir` for short-lived data only
